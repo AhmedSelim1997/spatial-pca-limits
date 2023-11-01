@@ -1,0 +1,144 @@
+import yaml
+import os
+
+## Disable creation of an output directory
+# This is because snakemake keeps overwriting the directory even if it exists
+config["directory_creation"] = "disable"
+path_to_slim = "/home/afselim/scratch-midway2/SLiM/build/slim"
+
+tau = config["simulation"]["tau"]
+m = config["simulation"]["m"]
+K = config["simulation"]["K"]
+demography = config["demography"]
+N = config["simulation"]["N"]
+sigma = config["simulation"]["m"]
+L = config["simulation"]["L"]
+
+## This is the path where the outputs of the simulations (genotype matrices) and eigenanalysis files will be saved
+output_path = config["output_path"]
+sim_file = os.path.join(output_path, "simulation.slim")
+full_data = os.path.join(output_path, "full.txt")
+genotype_matrix = os.path.join(output_path, "genotypes.pkl")
+positions = os.path.join(output_path, "positions.pkl")
+eigenvalues_df = os.path.join(output_path,"eigenvalues.pkl")
+eigenvectors_df = os.path.join(output_path,"eigenvectors.pkl")
+
+rule all:
+    input:
+        eigenvalues_df,
+        eigenvectors_df
+
+if demography == "cont":
+    ## Runs the SLiM continuous spatial simulation workflow if the deomgraphy is continuous
+    rule create_cont_simulation:
+        params:
+            N = N,
+            sigma = sigma,
+            # t_end = 4*N,
+            t_end = 10000, ## Have it fixed for 10,000 for now
+            output_path = output_path
+        output:
+            sim_file
+        shell:
+            """
+            ./create_cont_sim.sh {params.N} {params.sigma} {params.t_end} {params.output_path}
+            """
+
+    rule run_cont_simulation:
+        input:
+            sim_file
+        params:
+            output_path=output_path,
+            path_to_slim=path_to_slim
+        output:
+            full_data
+        shell:
+            """
+            output_path={params.output_path}
+            path_to_slim={params.path_to_slim}
+            echo $output_path
+            cd $output_path
+            time $path_to_slim simulation.slim
+            """
+
+    rule parse_cont_simulation:
+        input:
+            full_data
+        params:
+            output_path=output_path,
+            L=L
+        output:
+            genotype_matrix,
+            positions
+        shell:
+            """
+            # module load python
+            # source activate main
+            python parse_genotypes.py --output_path {params.output_path} --L_thinning {params.L}
+            """
+else:
+    ## Runs the msprime coalescent simulation workflow if the deomgraphy is pop_split, 1d_SS or 2d_SS
+    rule run_msprime_simulation:
+        params:
+            demography = demography,
+            tau = tau,
+            m = m,
+            K = K,
+            N = N,
+            n = config["simulation"]["n"],
+            L = config["simulation"]["L"],
+            output_path = output_path
+        output:
+            genotype_matrix
+        shell:
+            """
+            # module load python
+            # source activate main
+            python generate_genotype_matrices.py \
+            --demography {params.demography} \
+            --N {params.N} \
+            --n {params.n} \
+            --L {params.L} \
+            --tau {params.tau} \
+            --m {params.m} \
+            --K {params.K} \
+            --output_path {params.output_path}
+            """
+
+## Once the simulation is complete and a genotype matrix is produced, the eigenanalysis step follows
+rule generate_eigen_files:
+    input:
+        genotype_matrix
+    params:
+        demography = config["demography"],
+        n_min = config["eigen"]["n_min"],
+        n_max = config["eigen"]["n_max"],
+        n_num = config["eigen"]["n_num"],
+        n_space = config["eigen"]["n_space"],
+        L_min = config["eigen"]["L_min"],
+        L_max = config["eigen"]["L_max"],
+        L_num = config["eigen"]["L_num"],
+        L_space = config["eigen"]["L_space"],
+        p = config["eigen"]["p"],
+        output_path = config["output_path"]
+
+    output:
+        eigenvalues_df,
+        eigenvectors_df
+    shell:
+        """
+        # module load python
+        # source activate main
+        python generate_eigen.py \
+            --output_path {params.output_path} \
+            --n_min {params.n_min} \
+            --n_max {params.n_max} \
+            --n_num {params.n_num} \
+            --n_space {params.n_space} \
+            --L_min {params.L_min} \
+            --L_max {params.L_max} \
+            --L_num {params.L_num} \
+            --L_space {params.L_space} \
+            --p {params.p} \
+            --demography {params.demography}
+        """      
