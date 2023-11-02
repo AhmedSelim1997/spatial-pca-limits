@@ -9,8 +9,9 @@
 data/
 docs/jobs/
 docs/job_outputs
+scripts/analysis/old_analysis
 
 # Ignore test files
-scripts/test_anal.ipynb
+test*
 
 
