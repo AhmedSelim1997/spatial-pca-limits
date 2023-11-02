@@ -4,32 +4,32 @@ import numpy as np
 import pandas as pd
 from itertools import product
 
-# param_names = [
-#     "Fst"
-# ]
+def create_parameter_array(param_names,param_values,filename):
+    assert len(param_names) == len(param_values)
+    param_values = {param_names[i]:param_values[i] for i in range(len(param_names))}
+    param_csv = pd.DataFrame(list(product(*[param_values[param_name] for param_name in param_names])),columns=param_names)
+    param_csv.to_csv("../docs/parameter_csv_files/"+filename)
 
-# param_values = {
-#     param_names[0]: np.round(np.geomspace(1e-5,1e-1,200),8)
-# }
 
-# param_csv = pd.DataFrame(list(product(*[param_values[param_name] for param_name in param_names])),columns=param_names)
+pop_split_param_names = ["Fst"]
+pop_split_param_values = [np.round(np.geomspace(1e-4,0.5,200),6)]
+pop_split_filename = "pop_split_params.csv"
 
-# filename = "pop_split.csv"
-# param_csv.to_csv("../docs/parameter_csv_files/"+filename)
+SS_param_names = ["K","m"]
+SS_1d_param_values = [[5,7,9,11],np.round(np.geomspace(1e-4,0.5,100),5)]
+SS_2d_param_values = [[5,7,9],np.round(np.geomspace(1e-3,0.5,100),5)]
+SS_1d_filename = "SS_1d_params.csv"
+SS_2d_filename = "SS_2d_params.csv"
 
-param_names = [
-    "N",
-    "m"
-]
+cont_param_names = ["N","m"]
+cont_param_values = [[500,1000,2000], np.round(np.geomspace(1e-2,1e-1,25),5)[1:-1]]
+cont_filename = "cont_params.csv"
 
-param_values = {
-    # param_names[0]: [5,7,9,11],
-    # param_names[1]: np.round(np.geomspace(1e-4,0.5,50),5),
-    param_names[0]: [500,1000,2000],
-    param_names[1]: np.round(np.geomspace(1e-2,1e-1,25),5)[1:-1]
-}
 
-param_csv = pd.DataFrame(list(product(*[param_values[param_name] for param_name in param_names])),columns=param_names)
 
-filename = "cont_params_more.csv"
-param_csv.to_csv("../docs/parameter_csv_files/"+filename)
+
+
+create_parameter_array(pop_split_param_names,pop_split_param_values,pop_split_filename)
+create_parameter_array(SS_param_names,SS_1d_param_values,SS_1d_filename)
+create_parameter_array(SS_param_names,SS_2d_param_values,SS_2d_filename)
+create_parameter_array(cont_param_names,cont_param_values,cont_filename)
