@@ -113,12 +113,12 @@ EOF
 elif [[ "$DEM" = "SteppingStones_1d" ]]; then
     
 cat > "${CONFIG}" << EOF
-    N: ${N}
     demography: ${DEM}
     output_path: ${output_directory}
 
     # Step 1 parameters
     simulation:
+        N: ${N}
         m: !!float ${MIG}
         K: !!int ${K}
         n: 200 
@@ -143,12 +143,12 @@ EOF
 elif [[ "$DEM" = "SteppingStones_2d" ]]; then
     
 cat > "${CONFIG}" << EOF
-    N: ${N}
     demography: ${DEM}
     output_path: ${output_directory}
 
     # Step 1 parameters
     simulation:
+        N: ${N}
         m: !!float ${MIG}
         K: !!int ${K}
         n: 120
