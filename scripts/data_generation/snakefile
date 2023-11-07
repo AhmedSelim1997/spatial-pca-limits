@@ -13,10 +13,10 @@ n = config["simulation"]["n"]
 
 if demography == "split":
     tau = config["simulation"]["tau"]
-elif "SteppingStones" in demographgy:
+elif "SteppingStones" in demography:
     m = config["simulation"]["m"]
     K = config["simulation"]["K"]
-elif demographgy == "cont":
+elif demography == "cont":
     K = config["simulation"]["K"]
     sigma = config["simulation"]["m"]
 
@@ -107,7 +107,7 @@ else:
                 --tau {params.tau} \
                 --output_path {params.output_path}
                 """
-    elif "SteppingStones" in demographgy:
+    elif "SteppingStones" in demography:
         rule run_msprime_simulation:
                 params:
                     demography = demography,

@@ -202,4 +202,4 @@ EOF
 fi
 
 # Run snakemake
-snakemake --configfile "${CONFIG}" --cores all --notemp --printshellcmds
+snakemake --configfile "${CONFIG}" --cores all --notemp
