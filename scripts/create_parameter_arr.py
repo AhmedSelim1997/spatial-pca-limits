@@ -12,7 +12,7 @@ def create_parameter_array(param_names,param_values,filename):
 
 
 pop_split_param_names = ["Fst"]
-pop_split_param_values = [np.round(np.geomspace(1e-4,0.5,200),6)]
+pop_split_param_values = [np.round(np.geomspace(1e-5,0.5,200),6)]
 pop_split_filename = "pop_split_params.csv"
 
 SS_param_names = ["K","m"]

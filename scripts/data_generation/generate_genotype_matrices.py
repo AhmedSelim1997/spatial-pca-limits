@@ -1,8 +1,13 @@
+import os
+import sys
+module_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../")
+sys.path.append(module_directory)
 import numpy as np
 import argparse
 import demographies
 import psutil
 import time
+import pickle  
 
 process = psutil.Process()
 initial_memory = process.memory_info().rss
@@ -68,7 +73,8 @@ if __name__ == "__main__":
 
     geno = demographies.Create_Genotypes(dem,samples,chrom_length,L,mu)
 
-    np.save(output_path+"genotypes",geno)
+    with open(os.path.join(output_path,"genotypes.pkl"),"wb") as file:
+        pickle.dump(geno,file)
 
     del geno
 

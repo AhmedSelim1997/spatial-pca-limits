@@ -79,63 +79,127 @@ fi
 CONFIG=$output_directory"config.yml"
 echo $CONFIG
 # Create configuration file
-cat > "${CONFIG}" << EOF
 # This file stores the parameters needed for the snakefile that runs a simulation a generates eigenvalues and eigenvectors matrix
 
-demography: ${DEM}
-output_path: ${output_directory}
+if [[ "$DEM" = "split" ]]; then
 
-# Step 1 parameters
-simulation:
-    N: ${N} ## For cont
+cat > "${CONFIG}" << EOF
 
-    # n: 1000 ## For pop split
-    # n: 150 ## For 1d stepping stones
-    # n: 110 ## For 2d stepping stones
+    demography: ${DEM}
+    output_path: ${output_directory}
 
-    L: 15000 ## For pop split and cont
-    # L: 7500 ## For stepping stones 
+    # Step 1 parameters
+    simulation:
+        N: ${N} 
+        tau: !!float ${TAU}
+        n: 1000
+        L: 15000
+
+    # Step 2 parameters
+    eigen:
+        n_min: 2
+        n_max: 990
+        n_num: 50
+        
+        L_min: 50
+        L_max: 8000
+        L_num: 20
+
+        n_space: "lin"
+        L_space: "geom"
+        p: 1
+EOF
+
+elif [[ "$DEM" = "SteppingStones_1d" ]]; then
     
-    tau: !!float ${TAU}
-    m: !!float ${MIG}
-    K: !!int ${K}
- 
-# Step 2 parameters
-eigen:
-    # n_min: 2 ## For pop split
-    # n_max: 990 ## For pop split
-    # n_num: 50 ## For pop split
+cat > "${CONFIG}" << EOF
+    N: ${N}
+    demography: ${DEM}
+    output_path: ${output_directory}
 
-    # n_min: 2 ## For stepping stones 
-    # n_max: 100 ## For stepping stones 
-    # n_num: 50 ## For stepping stones 
-    
-    n_min: 2 ## For cont
-    n_max: 51 ## For cont
-    n_num: 50 ## For cont
-    
-    # L_min: 50 ## For pop split
-    # L_max: 8000 ## For pop split
-    # L_num: 20 ## For pop split
+    # Step 1 parameters
+    simulation:
+        m: !!float ${MIG}
+        K: !!int ${K}
+        n: 200 
+        L: 10000
 
-    # L_min: 50 ## For 1d stepping stones
-    # L_max: 4000 ## For 1d stepping stones
-    # L_num: 50 ## For 1d stepping stones
+    # Step 2 parameters
+    eigen:
+        n_min: 2 
+        n_max: 100 
+        n_num: 50 
 
-    # L_min: 50 ## For 2d stepping stones
-    # L_max: 4000 ## For 2d stepping stones
-    # L_num: 20 ## For 2d stepping stones
+        L_min: 50
+        L_max: 4000
+        L_num: 50
 
-    L_min: 500 ## For cont
-    L_max: 8000 ## For cont
-    L_num: 20 ## For cont
-
-    n_space: "lin"
-    L_space: "geom"
-    # p: 2
-    p: 4 ## For 2d SS and cont
+        n_space: "lin"
+        L_space: "geom"
+        p: 2
 
 EOF
+
+elif [[ "$DEM" = "SteppingStones_2d" ]]; then
+    
+cat > "${CONFIG}" << EOF
+    N: ${N}
+    demography: ${DEM}
+    output_path: ${output_directory}
+
+    # Step 1 parameters
+    simulation:
+        m: !!float ${MIG}
+        K: !!int ${K}
+        n: 120
+        L: 10000
+
+    # Step 2 parameters
+    eigen:
+        n_min: 2
+        n_max: 100
+        n_num: 50
+
+        L_min: 500
+        L_max: 8000
+        L_num: 20
+
+        n_space: "lin"
+        L_space: "geom"
+        p: 4
+
+EOF
+    
+elif [[ "$DEM" = "cont" ]]; then
+
+cat > "${CONFIG}" << EOF
+    demography: ${DEM}
+    output_path: ${output_directory}
+
+    # Step 1 parameters
+    simulation:
+        N: ${N}
+        m: !!float ${MIG}
+        K: !!int ${K}
+        L: 15000
+
+    # Step 2 parameters
+    eigen:        
+        n_min: 2
+        n_max: 100
+        n_num: 50
+    
+        # L_min: 500
+        # L_max: 8000
+        # L_num: 20
+
+        n_space: "lin"
+        L_space: "geom"
+        p: 4
+
+EOF
+
+fi
 
 # Run snakemake
 snakemake --configfile "${CONFIG}" --cores all --notemp --printshellcmds

@@ -1,4 +1,8 @@
 #%%
+import os
+import sys
+module_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../")
+sys.path.append(module_directory)
 import numpy as np
 import argparse
 from utils import generate_eigen_df

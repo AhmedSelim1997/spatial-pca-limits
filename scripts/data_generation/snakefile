@@ -6,13 +6,19 @@ import os
 config["directory_creation"] = "disable"
 path_to_slim = "/home/afselim/scratch-midway2/SLiM/build/slim"
 
-tau = config["simulation"]["tau"]
-m = config["simulation"]["m"]
-K = config["simulation"]["K"]
 demography = config["demography"]
 N = config["simulation"]["N"]
-sigma = config["simulation"]["m"]
 L = config["simulation"]["L"]
+n = config["simulation"]["n"]
+
+if demography == "split":
+    tau = config["simulation"]["tau"]
+elif "SteppingStones" in demographgy:
+    m = config["simulation"]["m"]
+    K = config["simulation"]["K"]
+elif demographgy == "cont":
+    K = config["simulation"]["K"]
+    sigma = config["simulation"]["m"]
 
 ## This is the path where the outputs of the simulations (genotype matrices) and eigenanalysis files will be saved
 output_path = config["output_path"]
@@ -78,39 +84,63 @@ if demography == "cont":
             """
 else:
     ## Runs the msprime coalescent simulation workflow if the deomgraphy is pop_split, 1d_SS or 2d_SS
-    rule run_msprime_simulation:
-        params:
-            demography = demography,
-            tau = tau,
-            m = m,
-            K = K,
-            N = N,
-            n = config["simulation"]["n"],
-            L = config["simulation"]["L"],
-            output_path = output_path
-        output:
-            genotype_matrix
-        shell:
-            """
-            # module load python
-            # source activate main
-            python generate_genotype_matrices.py \
-            --demography {params.demography} \
-            --N {params.N} \
-            --n {params.n} \
-            --L {params.L} \
-            --tau {params.tau} \
-            --m {params.m} \
-            --K {params.K} \
-            --output_path {params.output_path}
-            """
+    if demography == "split":
+        rule run_msprime_simulation:
+            params:
+                demography = demography,
+                tau = tau,
+                N = N,
+                n = n,
+                L = L,
+                output_path = output_path
+            output:
+                genotype_matrix
+            shell:
+                """
+                # module load python
+                # source activate main
+                python generate_genotype_matrices.py \
+                --demography {params.demography} \
+                --N {params.N} \
+                --n {params.n} \
+                --L {params.L} \
+                --tau {params.tau} \
+                --output_path {params.output_path}
+                """
+    elif "SteppingStones" in demographgy:
+        rule run_msprime_simulation:
+                params:
+                    demography = demography,
+                    m = m,
+                    K = K,
+                    N = N,
+                    n = n,
+                    L = L,
+                    output_path = output_path
+                output:
+                    genotype_matrix
+                shell:
+                    """
+                    # module load python
+                    # source activate main
+                    python generate_genotype_matrices.py \
+                    --demography {params.demography} \
+                    --N {params.N} \
+                    --n {params.n} \
+                    --L {params.L} \
+                    --m {params.m} \
+                    --K {params.K} \
+                    --output_path {params.output_path}
+                    """
+
+
 
 ## Once the simulation is complete and a genotype matrix is produced, the eigenanalysis step follows
 rule generate_eigen_files:
     input:
         genotype_matrix
     params:
-        demography = config["demography"],
+        demography = demography,
         n_min = config["eigen"]["n_min"],
         n_max = config["eigen"]["n_max"],
         n_num = config["eigen"]["n_num"],
@@ -120,7 +150,7 @@ rule generate_eigen_files:
         L_num = config["eigen"]["L_num"],
         L_space = config["eigen"]["L_space"],
         p = config["eigen"]["p"],
-        output_path = config["output_path"]
+        output_path = output_path
 
     output:
         eigenvalues_df,
