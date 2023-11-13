@@ -73,7 +73,7 @@ def sample_genotype_matrix_slim(genotype_matrix,positions,n,L,K,margin=0.05):
     return sample_matrix,sample_positions
 
 def sample_genotype_matrix_msprime(genotype,n,L,K,sample_vector=[],ploidy=1):
-        ## This function selects n random individuals from each subpopulation (out of a total of K subpopulations) and L loci from a genotype matrix.
+    ## This function selects n random individuals from each subpopulation (out of a total of K subpopulations) and L loci from a genotype matrix.
     ## Assumes that the original genotype matrix has same number of individuals in each subpopulation.
     # n: number of individuals to sample from each subpopulation (rows)
     # L: number of loci to sample (columns)
@@ -95,6 +95,8 @@ def sample_genotype_matrix_msprime(genotype,n,L,K,sample_vector=[],ploidy=1):
     ## Choosing n random individuals from each subpopulation
     for i in range(K):
         n_sample = np.array(random.sample(range(1,n_tot_per_deme), sample_vector[i])) ## accounting for biased sampling
+        if len(n_sample) == 0:
+            continue
         sample_geno_deme = genotype[n_tot_per_deme*i:n_tot_per_deme*(i+1),:][n_sample,:]
         sample_geno[sample_end_indices[i]:sample_end_indices[i+1],:] = sample_geno_deme
 

@@ -4,10 +4,11 @@
 *.ipynb_checkpoints
 *.pyc
 *.snakemake
+*.out
+*.err
 
 # Ignore data and jobs directories
 data/
-docs/jobs/
 docs/job_outputs
 scripts/analysis/old_analysis
 
