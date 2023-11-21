@@ -9,13 +9,15 @@ path_to_slim = "/home/afselim/scratch-midway2/SLiM/build/slim"
 demography = config["demography"]
 N = config["simulation"]["N"]
 L = config["simulation"]["L"]
-n = config["simulation"]["n"]
+
 
 if demography == "split":
     tau = config["simulation"]["tau"]
+    n = config["simulation"]["n"]
 elif "SteppingStones" in demography:
     m = config["simulation"]["m"]
     K = config["simulation"]["K"]
+    n = config["simulation"]["n"]
 elif demography == "cont":
     K = config["simulation"]["K"]
     sigma = config["simulation"]["m"]
@@ -80,7 +82,7 @@ if demography == "cont":
             """
             # module load python
             # source activate main
-            python parse_genotypes.py --output_path {params.output_path} --L_thinning {params.L}
+            python parse_slim_output.py --output_path {params.output_path} --L_thinning {params.L}
             """
 else:
     ## Runs the msprime coalescent simulation workflow if the deomgraphy is pop_split, 1d_SS or 2d_SS

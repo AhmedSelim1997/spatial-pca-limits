@@ -22,7 +22,7 @@ SS_1d_filename = "SS_1d_params.csv"
 SS_2d_filename = "SS_2d_params.csv"
 
 cont_param_names = ["N","m"]
-cont_param_values = [[500,1000,2000], np.round(np.geomspace(1e-2,1e-1,25),5)[1:-1]]
+cont_param_values = [[500,1000,2000], np.round(np.geomspace(1e-2,0.25,50),5)]
 cont_filename = "cont_params.csv"
 
 

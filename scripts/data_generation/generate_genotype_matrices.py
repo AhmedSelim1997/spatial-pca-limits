@@ -83,5 +83,5 @@ end = time.perf_counter()
 final_memory = process.memory_info().rss
 time_elapsed = (end-start)/60
 memory_used = (final_memory-initial_memory) / 1048576
-print("time taken eigen = %.2f minutes" % time_elapsed) 
-print("memory used eigen= %.2f megabytes" % memory_used) 
+print("time taken sim = %.2f minutes" % time_elapsed) 
+print("memory used sim= %.2f megabytes" % memory_used) 
