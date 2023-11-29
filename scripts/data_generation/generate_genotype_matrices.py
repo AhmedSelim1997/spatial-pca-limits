@@ -5,6 +5,7 @@ sys.path.append(module_directory)
 import numpy as np
 import argparse
 import demographies
+from utils import calculate_coal_times
 import psutil
 import time
 import pickle  
@@ -16,7 +17,7 @@ start = time.perf_counter()
 # Define defualt values for the arguments for debugging purposes
 defaults = {
     'demography':"split",
-    'output_path':"../data/test_output/",
+    'output_path':"../../data/test_output/",
     'N': 100,
     'n': 20,
     'L': 100,
@@ -71,13 +72,17 @@ if __name__ == "__main__":
     elif demography == "SteppingStones_2d":
         dem,samples = demographies.Stepping_Stones_2d(N,K,m,n)
 
-    geno = demographies.Create_Genotypes(dem,samples,chrom_length,L,mu)
+    n_reps = 20
+    L_reps = 5000
+    t = calculate_coal_times(dem,n_reps,L_reps)
+    geno,T = demographies.Create_Genotypes(dem,samples,chrom_length,L,mu)
 
     with open(os.path.join(output_path,"genotypes.pkl"),"wb") as file:
         pickle.dump(geno,file)
-
-    del geno
-
+    with open(os.path.join(output_path,"branch_lengths.pkl"),"wb") as file:
+        pickle.dump(T,file)
+    with open(os.path.join(output_path,"pairwise_coal_times.pkl"),"wb") as file:
+        pickle.dump(t,file)
     
 end = time.perf_counter()
 final_memory = process.memory_info().rss

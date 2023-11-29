@@ -2,12 +2,12 @@
 #SBATCH --job-name=2d_SS
 #SBATCH --output=../job_outputs/SS_2d/SS_2d_%a.out
 #SBATCH --error=../job_outputs/SS_2d/SS_2d_%a.err
-#SBATCH --array=100-101
+#SBATCH --array=1-101
 #SBATCH --time=05:00:00
 #SBATCH --partition=broadwl
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem-per-cpu=10000
+#SBATCH --mem-per-cpu=6000
 
 cd ../../scripts/data_generation
 module load python

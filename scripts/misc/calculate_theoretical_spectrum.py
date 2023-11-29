@@ -4,179 +4,17 @@
 #%%
 import msprime
 import numpy as np
-import concurrent.futures as future
 import matplotlib.pyplot as plt
-import networkx as nx
-import itertools as it
-import time
-import os
-
-# Get the absolute path of the current script
-script_path = os.path.abspath(__file__)
-script_dir = os.path.dirname(script_path)
-os.chdir(script_dir)
-
-
-## This is just a test demography, but should work with any general demography
-def coor(index,K):
-    x=index%K
-    y=index//K
-    return x,y
-
-def Stepping_Stones_2d(N,K,m,n):
-    #N: Number of individuals per deme
-    #d: Number of demes per side (total number of demes is d*d)
-    #m: probability of obtaining the new individual from a nearby deme (backward migration rate)
-    #n: sample size drawn from each deme
-    demography = msprime.Demography.isolated_model(initial_size = [N]*(K**2))
-    samples = {pop.name:n for pop in demography.populations}
-    M = demography.migration_matrix
-    for i in range(K**2):
-        for j in range(K**2):
-            x1,y1 = coor(i,K)
-            x2,y2 = coor(j,K)
-            if (abs(x1-x2)==1 and abs(y1-y2)==0) or (abs(y1-y2)==1 and abs(x1-x2)==0):
-                M[i,j] = m/4
-    return demography, samples
-
-
-def mig_barrier_graph(K,m,x,thickness,N,n):
-    # The landscape will be a K x K square grid of demes exchanging migrants at rate:
-        # 1- m on the sides
-        # 2- m*x in the middle (the migration barrier)
-    # thickness is the thickness of the barrier as a proportion of the size of the landscape
-    demography = msprime.Demography.isolated_model(initial_size = [N]*(K**2))
-    samples = {pop.name:n for pop in demography.populations}
-    M = demography.migration_matrix
-    a = np.floor(0.5*K*(1-thickness))
-    b = K-a
-    barrier_indices = list(range(int(a),int(b)))
-    for i in range(K**2):
-        for j in range(K**2):
-            x1,y1 = coor(i,K)
-            x2,y2 = coor(j,K)
-            if (abs(x1-x2)==1 and abs(y1-y2)==0) or (abs(y1-y2)==1 and abs(x1-x2)==0):
-                if (x1 in barrier_indices) or (x2 in barrier_indices):
-                    M[i,j] = x*m/4
-                else:
-                    M[i,j] = m/4
-    return demography,samples
-
-def setup_graph(
-    n_rows=5,
-    n_columns=8,
-    barrier_startpt=2.5,
-    barrier_endpt=5.5,
-    anisotropy_scaler=1.0,
-    barrier_w=0.1,
-    corridor_w=0.5,
-    n_samples_per_node=10,
-    barrier_prob=1,
-    corridor_left_prob=1,
-    corridor_right_prob=1,
-    sample_prob=1.0,
-):
-    """Setup graph (triangular lattice) for simulation
-    Arguments
-    ---------
-    n_rows : int
-        number of rows in the lattice
-    n_columns : int
-        number of rows in the lattice
-    barrier_startpt : float
-        geographic position of the starting pt of the barrier from left to right
-    barrier_endpt : float
-        geographic position of the starting pt of the barrier from left to right
-    anisotropy_scaler : float
-        scaler on horizontal edge weights to create an anisotropic simulation
-    barrier_w : float
-        migration value for nodes in the barrier
-    corridor_w : float
-        migration value for nodes in the corridor
-    n_samples_per_node : int
-        total number of samples in an node
-    barrier_prob : float
-        probability of sampling an individual in the barrier
-    corridor_left_prob : float
-        probability of sampling a individual in the left corridor
-    corridor_right_prob : float
-        probability of sampling an individual in the right corridor
-    sample_prob : float
-        probability of sampling a node
-    Returns
-    -------
-    tuple of graph objects
-    """
-    n_samples_per_node = int(n_samples_per_node/2)
-    graph = nx.generators.lattice.triangular_lattice_graph(
-        n_rows - 1, 2 * n_columns - 2, with_positions=True
-    )
-    graph = nx.convert_node_labels_to_integers(graph)
-    pos_dict = nx.get_node_attributes(graph, "pos")
-    for i in graph.nodes:
-
-        # node position
-        x, y = graph.nodes[i]["pos"]
-
-        if x <= barrier_startpt:
-            graph.nodes[i]["sample_size"] = 2 * np.random.binomial(
-                n_samples_per_node, corridor_left_prob
-            )
-        elif x >= barrier_endpt:
-            graph.nodes[i]["sample_size"] = 2 * np.random.binomial(
-                n_samples_per_node, corridor_right_prob
-            )
-        else:
-            graph.nodes[i]["sample_size"] = 2 * np.random.binomial(
-                n_samples_per_node, barrier_prob
-            )
-
-        # sample a node or not
-        graph.nodes[i]["sample_size"] = graph.nodes[i][
-            "sample_size"
-        ] * np.random.binomial(1, sample_prob)
-
-    # assign edge weights
-    for i, j in graph.edges():
-        x = np.mean([graph.nodes[i]["pos"][0], graph.nodes[j]["pos"][0]])
-        y = np.mean([graph.nodes[i]["pos"][1], graph.nodes[j]["pos"][1]])
-        if x <= barrier_startpt:
-            graph[i][j]["w"] = corridor_w
-        elif x >= barrier_endpt:
-            graph[i][j]["w"] = corridor_w
-        else:
-            graph[i][j]["w"] = barrier_w
-
-        # if horizontal edge
-        if graph.nodes[i]["pos"][1] == graph.nodes[j]["pos"][1]:
-            graph[i][j]["w"] = anisotropy_scaler * graph[i][j]["w"]
-
-    grid = np.array(list(pos_dict.values()))
-    edge = np.array(graph.edges)
-    edge += 1  # 1 indexed nodes for feems
-
-    # create sample coordinates array
-    sample_sizes_dict = nx.get_node_attributes(graph, "sample_size")
-    pops = [[i] * int(sample_sizes_dict[i] / 2) for i in graph.nodes]
-    pops = list(it.chain.from_iterable(pops))
-    coord = grid[pops, :]
-    return (graph, coord, grid, edge)
-
-
-
+module_directory = os.path.join(os.path.dirname(os.path.abspath(__file__)),"../")
+sys.path.append(module_directory)
+from demographies import Stepping_Stones_1d
 #%%
-def mutation_function(tree): ##Define mu here rather than down
-    mu=1e-4
-    mut_tree = msprime.sim_mutations(tree,rate=mu, model ='binary',discrete_genome=False)
-    return mut_tree
-
-def calculate_coal_times(demography,n_reps,L_reps,chrom_length,mu=1e-4,ploidy=1):
+def calculate_coal_times(demography,n_reps,L_reps,ploidy=1):
     K = demography.num_populations
 
     ts_list = msprime.sim_ancestry(
     samples = {pop.name:n_reps for pop in demography.populations},
     demography = demography,
-    sequence_length=chrom_length,
     num_replicates=L_reps,
     ploidy=ploidy
 )
@@ -187,8 +25,7 @@ def calculate_coal_times(demography,n_reps,L_reps,chrom_length,mu=1e-4,ploidy=1)
 
     # with future.Executor() as executor:
     #     mutations_reps = executor.map(mutation_function, ts_list)
-    mutations_reps = map(mutation_function, ts_list)
-    for k,ts in enumerate(mutations_reps): ## k is a counter for the current simulation rep
+    for k,ts in enumerate(ts_list): ## k is a counter for the current simulation rep
         for i in range(K): ## i is a counter for subpopulation 1
             t_same[i,k] = ts.diversity(sample_sets = ts.samples(population=i),mode = "branch")/2 ## we divide by 2 because we want the coalescent time not the total branch legnth
             for j in range(i,K): ## j is a counter for subpopulation 2
@@ -235,6 +72,7 @@ def calculate_theor_spectrum(demography,sample_sizes,n_reps=10,L_reps=5000,ploid
                     weighted_ave_vector = weighted_ave_vector+[coal_times[i,j]]*n
             t_ave_subpop.append(np.mean(weighted_ave_vector))
         t_ave = np.mean(t_ave_subpop)
+## 2- Calculatung theoretical covariance matrix using pairwise coalescent times
 
         theor_cov = np.zeros((tot_sample_size,tot_sample_size))
         subpop_start_indices = [0] + list(np.cumsum(sample_sizes))
@@ -255,70 +93,12 @@ def calculate_theor_spectrum(demography,sample_sizes,n_reps=10,L_reps=5000,ploid
 
 
 #%%
-n=5
-L=500
-K=8
-m=0.5
-thickness = 0.2
-N=1
-x=0.5
-dem,samples = mig_barrier_graph(K,m,x,thickness,N=1,n=20)
+n=20
+L=5000
+K=5
+m=0.01
+N=1000
+dem,samples = Stepping_Stones_1d(N,K,m,n)
 vals,vecs = calculate_theor_spectrum(dem,sample_sizes = n,n_reps = n,L_reps=L)
 
 
-#%%
-path_vals = "../../data/theor_eigen/mig_barrier_theor_spectrum_grid/eigenvalues/"
-path_vecs = "../../data/theor_eigen/mig_barrier_theor_spectrum_grid/eigenvectors/"
-x_list = np.round(np.linspace(0.1,1,50),3)
-L=5000
-K=8
-m=0.5
-thickness = 0.2
-N=1
-n = 10
-start_counter = 25
-for x in x_list[start_counter:]:
-    start_sim = time.perf_counter()
-    dem,samples = mig_barrier_graph(K,m,x,thickness,N=1,n=n)
-    vals,vecs = calculate_theor_spectrum(dem,sample_sizes = n,n_reps = n,L_reps=L)
-    np.save(path_vals+"x=%.2f"%x,vals)
-    np.save(path_vecs+"x=%.2f"%x,vecs)
-
-    end_sim = time.perf_counter()
-    print("time taken for x=%.2f is %.2f seconds" % (x,round(end_sim-start_sim, 2)))
-    del vals
-    del vecs
-
-#%%
-# graph, coord, grid, edge = setup_graph(n_samples_per_node=10,barrier_w=0.1)
-# K = len(graph.nodes)
-# mig_mat = nx.adj_matrix(graph, weight="w").toarray().tolist()
-# demography = msprime.Demography.isolated_model(initial_size = [1]*K)
-# demography.migration_matrix = np.array(mig_mat)
-
-# # sample sizes per node
-# sample_sizes = 10
-
-# low_mig = calculate_theor_spectrum(demography,sample_sizes)
-# np.save("low_mig",low_mig)
-
-# #%%
-# graph, coord, grid, edge = setup_graph(n_samples_per_node=10,barrier_w=0.5)
-# K = len(graph.nodes)
-# mig_mat = nx.adj_matrix(graph, weight="w").toarray().tolist()
-# demography = msprime.Demography.isolated_model(initial_size = [1]*K)
-# demography.migration_matrix = np.array(mig_mat)
-
-# # sample sizes per node
-# sample_sizes = 10
-
-# high_mig = calculate_theor_spectrum(demography,sample_sizes)
-# np.save("high_mig",high_mig)
-
-#%%
-# K=5
-# m=1e-2
-# n=10
-# demography,samples = Stepping_Stones_2d(N,K,m,n)
-
-# coal_times = calculate_coal_times(demography,n_reps,chrom_length,L_reps,mu,ploidy=1)

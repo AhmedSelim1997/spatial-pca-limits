@@ -130,13 +130,13 @@ cat > "${CONFIG}" << EOF
         n_max: 100 
         n_num: 50 
 
-        L_min: 50
-        L_max: 4000
-        L_num: 50
+        L_min: 1200
+        L_max: 9000
+        L_num: 25
 
         n_space: "lin"
         L_space: "geom"
-        p: 2
+        p: !!int ${K}
 
 EOF
 
@@ -151,18 +151,18 @@ cat > "${CONFIG}" << EOF
         N: ${N}
         m: !!float ${MIG}
         K: !!int ${K}
-        n: 120
-        L: 10000
+        n: 100
+        L: 8000
 
     # Step 2 parameters
     eigen:
         n_min: 2
-        n_max: 100
-        n_num: 50
+        n_max: 80
+        n_num: 40
 
         L_min: 500
-        L_max: 8000
-        L_num: 20
+        L_max: 7500
+        L_num: 25
 
         n_space: "lin"
         L_space: "geom"
@@ -195,7 +195,7 @@ cat > "${CONFIG}" << EOF
 
         n_space: "lin"
         L_space: "geom"
-        p: 4
+        p: 8
 
 EOF
 

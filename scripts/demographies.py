@@ -1,3 +1,4 @@
+#%%
 import numpy as np
 import msprime
 
@@ -54,18 +55,24 @@ def Create_Genotypes(demography,samples,chrom_length,L,mu):
     #Chrom_length: set to one for simple simulations
     #S: number of unlinked snps to simulate
     #mu: mutation rate per nuceotide per generation
-    trees = msprime.sim_ancestry(
+    ## Also calculates mean total branch length
+    ts_list = msprime.sim_ancestry(
         samples = samples,
         demography = demography,
         sequence_length=chrom_length,
         num_replicates=L,
         ploidy = 1
     )
-    m=np.max(demography.migration_matrix.flatten())*2 ##since the m defined is the out of deme migration rate
-    mutations_reps = map(mutation_function, trees,[mu]*L)
+    n_tot=list(samples.values())[0]
+    K=demography.num_populations
+    mutations_reps = map(mutation_function, ts_list,[mu]*L)
     halotypes = []
-    for tree in mutations_reps:
-        H = tree.genotype_matrix()
+    branch_lengths = np.zeros((L,n_tot))
+    for i,ts in enumerate(mutations_reps):
+        for j,n in enumerate(range(1,n_tot+1)):
+            simplified_ts = ts.simplify(np.concatenate([np.arange(k*n_tot,k*n_tot+n) for k in range(K)]))
+            branch_lengths[i,j] = np.mean([tree.total_branch_length for tree in simplified_ts.trees()])
+        H = ts.genotype_matrix()
         p,n = H.shape
         if p==0:
             continue
@@ -75,4 +82,8 @@ def Create_Genotypes(demography,samples,chrom_length,L,mu):
         halotypes.append(h)
     H = np.vstack(halotypes)
     genotypes = H.T
-    return genotypes
+    T = np.mean(branch_lengths,axis=0)
+    return genotypes,T
+
+
+# %%

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import os
 import pickle
+from scipy.signal import savgol_filter
 #%%
 def create_full_eigenvalue_df(input_path,param):
     l = len(param) + 1
@@ -26,13 +27,15 @@ def create_full_eigenvalue_df(input_path,param):
         full_df = pd.concat([full_df,df])
     return full_df
 
-def find_critical_point(vec, window_size=5):
+def find_critical_point(vec):
     ## It smooths and differentiates the the vector, then finds the index i where all derivative values after index i (till max value) are greater than that of index i
-    smoothed_vec = np.convolve(vec, np.ones(window_size)/window_size, mode='valid') ## Smoothing convolution
-    derivative_vec = np.gradient(smoothed_vec)
-    max_inx = np.argmax(derivative_vec)
-    for i,val in enumerate(derivative_vec[:max_inx]):
-        if np.all(derivative_vec[i:max_inx]>=val) and val > 0:
+    window_size=int(len(vec)/10)
+    smoothed_derivatives=savgol_filter(vec,window_length=window_size,polyorder=3,deriv=1)
+    cum_ave = np.divide(np.cumsum(vec),np.arange(1,1+len(vec)))
+    function_increasing = smoothed_derivatives>0
+    more_than_cum_ave = vec>cum_ave
+    y = np.logical_or(function_increasing,more_than_cum_ave)
+    for i in range(len(vec)):
+        if np.all(y[i:]):
             return i
     return len(vec)-1
-# %%

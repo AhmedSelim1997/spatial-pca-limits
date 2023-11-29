@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=1d_SS
-#SBATCH --array=302-401
-#SBATCH --time=00:45:00
+#SBATCH --array=1-401
+#SBATCH --time=01:30:00
 #SBATCH --partition=broadwl
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
