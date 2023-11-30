@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=1d_SS
-#SBATCH --array=1-401
-#SBATCH --time=01:30:00
+#SBATCH --array=2-473
+#SBATCH --time=02:00:00
 #SBATCH --partition=broadwl
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --mem-per-cpu=5000
+#SBATCH --mem-per-cpu=4500
 
 cd ../../scripts/data_generation
 module load python

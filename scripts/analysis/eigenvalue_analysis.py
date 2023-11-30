@@ -1,4 +1,5 @@
 #%%
+os.chdir(os.path.dirname(os.path.abspath(__file__)))
 from analysis_functions import find_critical_point
 import numpy as np
 import pandas as pd
@@ -62,22 +63,26 @@ plt.plot()
 
 # %%
 output_path = "../../results/full_data"
-with open(os.path.join(output_path,"SS_1d,K=5.pkl"),"rb") as f:
+with open(os.path.join(output_path,"new_df.pkl"),"rb") as f:
     full_df = pickle.load(f)
 n_list=np.unique(full_df.n)
 L_list = np.unique(full_df.L)
 m_list = np.unique(full_df.m)
 # %%
-n=n_list[-5]
-L=L_list[-5]
+K=5
+n=n_list[10]
+L=L_list[15]
 a = full_df[full_df.n == n]
 a = a[a.L == L]
 x = a.p_1.values
-plt.scatter(np.log10(m_list),x)
+m_cutoff = find_cutoff_m(K,n,L)[0]
+plt.scatter(m_list,x,marker='.')
+plt.axvline(x=m_cutoff, color='red', linestyle='--')
 # inx = np.min(np.where(tau_list>1/np.sqrt(n*L)))
-predicted_inx = find_critical_point(x[::-1])
+# predicted_inx = find_critical_point(x[::-1])
 # plt.axvline(x=np.log10(tau_list[inx]), color='red', linestyle='--', label='Vertical Line at x=3')
-plt.axvline(x=np.log10(m_list[predicted_inx]), color='blue', linestyle='--', label='Vertical Line at x=3')
+# plt.axvline(x=m_list[predicted_inx], color='blue', linestyle='--', label='Vertical Line at x=3')
+plt.xscale("log")
 # %%
 n=n_list[5]
 L=L_list[5]
@@ -170,4 +175,81 @@ emp_eig_ratio = np.divide(emp_eig1,emp_eig2)
 # %%
 plt.scatter(theor_eig_ratio,emp_eig_ratio)
 plt.plot(theor_eig_ratio,theor_eig_ratio,c="red")
+
+
+
+
+
+
+
+# %%
+from scipy.fft import fft
+from tqdm import tqdm
+from itertools import product
+def theor_eig_1d(K,m,data_dir,N=1000,max_n=200):
+    M = m * N
+    T_list = [(x * (K - x)) / (2 * M * K) for x in np.arange(1, ((K - 1) / 2) + 1)]
+    T_list2 = np.array(T_list+T_list[::-1]) 
+    T_list_full = [1]+ list(1+T_list2)
+    T_tilde = np.unique(np.real(fft(T_list_full)[1:]))
+    T = pd.read_pickle(data_dir + f"K={K}/m={m}/branch_lengths.pkl")/(N*K)
+    return  np.array([(1 /T[n]) * (1 - (n+1) * T_tilde) for n in range(max_n)])
+
+K_list=[5,7,9,11]
+data_dir = "../../data/SS_1d/"
+full_arr=np.full((len(K_list),len(m_list),len(n_list),len(L_list),max(K_list)),np.nan)
+for i,K in tqdm(enumerate(K_list)):
+        half_K = int((K-1)/2)
+        for j,m in enumerate(m_list):
+            try:
+                eig_all_n = theor_eig_1d(K,m,data_dir)
+                eig_all_n=eig_all_n[n_list.astype(int)-1,:]
+                gamma_list = np.array([1+np.sqrt(n/L) for n,L in product(n_list,L_list)]).reshape(len(n_list),len(L_list))
+                result = eig_all_n[:, np.newaxis, :] - gamma_list[:, :, np.newaxis]
+                full_arr[i,j,:,:,:half_K] = result
+            except: continue
+# %%
+
+
+
+#%%
+data_dir = "../../data/SS_1d/"
+K_list = [5,7,9,11]
+folders = {K: os.listdir(data_dir+f"K={K}") for K in K_list}
+m_list = {}
+m_list = np.sort([float(folder[2:]) for folder in folders[5]])
+N=1000
+# %%
+tot_num_T = len(K_list)*len(m_list)*len(n_list)
+data = np.zeros((1,4))
+for i,K in enumerate(K_list):
+    for j,m in enumerate(m_list):
+        try:
+            T_list = pd.read_pickle(data_dir+f"K={K}/m={m}/branch_lengths.pkl")/(K*N)
+            data_temp = np.hstack((np.array([K]*len(n_list)).reshape(-1,1),np.array([m]*len(n_list)).reshape(-1,1),np.linspace(2,100,50).reshape(-1,1),T_list[2:101:2].reshape(-1,1)))
+            data = np.vstack((data,data_temp))
+        except:
+            continue
+# %%
+X=data[1:,:-1]
+y=data[1:,-1]
+# %%
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+reg = GradientBoostingRegressor(random_state=0)
+reg.fit(X_train, y_train)
+# %%
+K=np.array([5]*100).reshape(-1,1)
+# m=np.array([0.01]*100).reshape(-1,1)
+m = np.linspace(0.001,0.1,100).reshape(-1,1)
+n=np.array([100]*100).reshape(-1,1)
+# n=np.arange(1,101).reshape(-1,1)
+a = np.hstack((K,m,n))
+# %%
+plt.plot(m,reg.predict(a))
+plt.xscale("log")
+
+# %%
 # %%

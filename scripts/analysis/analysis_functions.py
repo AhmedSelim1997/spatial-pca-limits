@@ -8,8 +8,8 @@ from scipy.signal import savgol_filter
 def create_full_eigenvalue_df(input_path,param):
     l = len(param) + 1
     data_folders = np.array(os.listdir(input_path))
-    data_folders = np.array([file for file in data_folders if "eigenvalues.pkl" in os.listdir(input_path + "/" + file)])
-    params_list = np.array([file[l:] for file in data_folders]).astype(float)
+    data_folders = np.array([file for file in data_folders if "eigenvalues.pkl" in os.listdir(input_path + "/" + file)]) ## only include folders with eigenvalue output
+    params_list = np.array([file[l:] for file in data_folders]).astype(float) #list of m_values or Fst_values
     order = np.argsort(params_list)
     params_list = params_list[order]
     data_folders = data_folders[order]

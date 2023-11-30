@@ -127,12 +127,12 @@ cat > "${CONFIG}" << EOF
     # Step 2 parameters
     eigen:
         n_min: 2 
-        n_max: 100 
-        n_num: 50 
+        n_max: 200 
+        n_num: 100 
 
         L_min: 1200
         L_max: 9000
-        L_num: 25
+        L_num: 30
 
         n_space: "lin"
         L_space: "geom"

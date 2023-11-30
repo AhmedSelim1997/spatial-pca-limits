@@ -16,14 +16,20 @@ pop_split_param_values = [np.round(np.geomspace(1e-5,0.5,200),6)]
 pop_split_filename = "pop_split_params.csv"
 
 SS_param_names = ["K","m"]
-SS_1d_min=1e-4
-SS_1d_max=0.3
-SS_2d_min=1e-3
-SS_2d_max=0.5
-# SS_1d_param_values = [[5,7,9,11],np.round((SS_1d_max+SS_1d_min)-np.geomspace(SS_1d_min,SS_1d_max,num=100),6)[::-1]]
-# SS_2d_param_values = [[5,7,9],np.round((SS_2d_max+SS_2d_min)-np.geomspace(SS_2d_min,SS_2d_max,num=100),6)[::-1]]
+SS_1d_min=5e-5
+SS_1d_mid_1 = 1e-3
+SS_1d_mid_2 = 1e-2
+SS_1d_max=0.25
 
-SS_1d_param_values = [[5,7,9,11],np.round((SS_1d_max+SS_1d_min)-np.linspace(SS_1d_min,SS_1d_max,num=100),6)[::-1]]
+SS_2d_min=1e-3
+SS_2d_mid = 10**-1.5
+SS_2d_max=0.5
+
+SS_1d_m_list = np.round(np.hstack([np.geomspace(SS_1d_min,SS_1d_mid_1,20),np.linspace(SS_1d_mid_1,SS_1d_mid_2,80)[1:],np.geomspace(SS_1d_mid_2,SS_1d_max,20)[1:]]),7)
+# SS_2d_m_list = np.round(np.concatenate(np.geomspace(SS_2d_min,SS_2d_mid,50),np.linspace(SS_2d_mid,SS_2d_max,50)),6)
+
+
+SS_1d_param_values = [[5,7,9,11],SS_1d_m_list]
 SS_2d_param_values = [[5,7,9],np.round((SS_2d_max+SS_2d_min)-np.linspace(SS_2d_min,SS_2d_max,num=100),6)[::-1]]
 
 SS_1d_filename = "SS_1d_params.csv"
