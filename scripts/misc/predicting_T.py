@@ -8,32 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 from scipy.fft import fft
-#%%
-def preprocess_T(data_dir,K_list,m_list,n_list):
-    data = np.zeros((1,4))
-    for K in tqdm(K_list):
-        for m in m_list:
-            try:
-                T_list = pd.read_pickle(data_dir+f"K={K}/m={m}/branch_lengths.pkl")/(K*N)
-                data_temp = np.hstack((np.array([K]*len(n_list)).reshape(-1,1),np.array([m]*len(n_list)).reshape(-1,1),n_list.reshape(-1,1),T_list[2:101:2].reshape(-1,1)))
-                data = np.vstack((data,data_temp))
-            except:
-                continue
-    return data[1:,:-1],data[1:,-1]
-#%%
-data_dir = "../../data/SS_1d/"
-K_list = [5,7,9,11]
-n_list = np.arange(2,101,2)
-folders = {K: os.listdir(data_dir+f"K={K}") for K in K_list}
-m_list = np.sort([float(folder[2:]) for folder in folders[5]])
-N=1000
-X, y = preprocess_T(data_dir,K_list,m_list,n_list)
-X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
-# %%
-regr = RandomForestRegressor(random_state=0)
-regr.fit(X_train, y_train)
-y_pred = regr.predict(X_test)
-print(f"MSE = {mean_squared_error(y_test, y_pred)}")
+
 # %%
 m=0.01
 n=50
@@ -135,4 +110,37 @@ plt.xscale("log")
 def empirical_m_cutoff(vec,n,L):
     edge = (1+np.sqrt(n/L))**2
     return np.where(vec>edge)[0][0]
+# %%
+def preprocess_T(demography,N=1000):
+    data_dir = "../../data/" + demography + "/"
+    data = np.zeros((1,4))
+    folders = os.listdir(data_dir)
+    for folder in tqdm(folders):
+        K = int(folder[2:])
+        data_folders = os.listdir(os.path.join(data_dir,folder))
+        for data_folder in data_folders:
+            m = float(data_folder[2:])
+            if "branch_lengths.pkl" in os.listdir(data_dir+f"K={K}/m={m}"):
+                T_list = pd.read_pickle(data_dir+f"K={K}/m={m}/branch_lengths.pkl")/(K*N)
+                data_len = len(T_list)
+                data_temp = np.hstack((np.array([K]*data_len).reshape(-1,1),np.array([m]*data_len).reshape(-1,1),np.arange(1,data_len+1).reshape(-1,1),T_list.reshape(-1,1)))
+                data = np.vstack((data,data_temp))
+    return data[1:,:-1],data[1:,-1]
+# %%
+def train_regressor_T(demography,N=1000):
+    X, y = preprocess_T(demography,N)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+    regr = RandomForestRegressor(random_state=0)
+    regr.fit(X_train, y_train)
+    y_pred = regr.predict(X_test)
+    print(f"MSE = {mean_squared_error(y_test, y_pred)}")
+    return regr
+# %%
+def theor_eig_1d(regr,K,m,n,N=1000):
+    M = m * N
+    T_list = [(x * (K - x)) / (2 * M * K) for x in np.arange(1, ((K - 1) / 2) + 1)]
+    T_list2 = np.array(T_list+T_list[::-1]) 
+    T_list_full = [1]+ list(1+T_list2)
+    T_tilde = np.unique(np.real(fft(T_list_full)[1:]))
+    return (1 / regr.predict(np.array([K,m,n]).reshape(1,-1))) * (1 - n * T_tilde)
 # %%

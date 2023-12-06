@@ -2,9 +2,9 @@
 #SBATCH --job-name=pop_split
 #SBATCH --output=../job_outputs/pop_split/pop_split_%a.out
 #SBATCH --error=../job_outputs/pop_split/pop_split_%a.err
-#SBATCH --array=5-201
-#SBATCH --time=00:45:00
-#SBATCH --partition=broadwl
+#SBATCH --array=2-3
+#SBATCH --time=02:00:00
+#SBATCH --partition=jnovembre
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem-per-cpu=5000

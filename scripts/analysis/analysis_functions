@@ -1,0 +1,340 @@
+#%%
+import os
+os.chdir(os.path.dirname(os.path.realpath(__file__)))
+import numpy as np
+import pandas as pd
+import pickle
+from tqdm import tqdm
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+from sklearn.model_selection import train_test_split
+from scipy.fft import fft
+import re
+
+# Eigenvalue Functions
+def construct_full_eigenvalue_df(demography):
+    """combines different eigenvalue_df's constructed from the construct_partial_eigenvalue_df() function for different values of K/N
+
+    Args:
+        demography (str): a demography that is defined by the name of the folder containing simulations from the demography of interest = {SS_1d,SS_2d,pop_split,cont}
+
+    Returns:
+        DataFrame: columns= [K/N,m,n,L,eigenvalue_1,eigenvalue_2,....,p_value_1,p_value_2,....,is_seperated_eigenvalue_1, is_seperated_eigenvalue_1,....]
+    """
+    assert demography in os.listdir(f"../../data/"), "the data directory doees not contain a folder for the demography specified"
+    input_path = f"../../data/{demography}/"
+    folders = os.listdir(input_path)
+    if "pop_split" in input_path:
+        full_df = construct_partial_eigenvalue_df(input_path,"Fst")
+    else:
+        dfs = []
+        for folder in folders:
+            try:
+                inner_path = os.path.join(input_path,folder)
+                K = int(folder.split(",")[0][2:])
+                temp_df = construct_partial_eigenvalue_df(inner_path,"m")
+                if "cont" in input_path:
+                    N = int(folder.split(",")[1][2:])
+                    temp_df.insert(0, 'N', N)
+                temp_df.insert(0, 'K', K)
+                dfs.append(temp_df)
+            except: continue
+        full_df = pd.concat(dfs,ignore_index=True)
+
+    pattern = re.compile(r'l_\d+$')
+    for column in [s for s in full_df.columns if pattern.match(s)]:
+            if "split" in demography:
+                full_df["is_seperated_"+column] = is_seperated_empirical_vectorized(full_df[[column]].values.reshape(1,-1)[0],(2*full_df.n).values,full_df.L.values)
+            else:
+                full_df["is_seperated_"+column] = is_seperated_empirical_vectorized(full_df[[column]].values.reshape(1,-1)[0],(full_df.K*full_df.n).values,full_df.L.values)
+    return full_df
+
+def construct_partial_eigenvalue_df(input_path,param):
+    """constructs a dataframe that combines the data from seperate files of eigenvalues, with varying m, n and L
+
+    Args:
+        input_path (str): The directory containing folders in which eigenvalue.pkl files reside
+        param (str): either "m" or "Fst". The parameter that takes different values in the input_path directory
+
+    Returns:
+        DataFrame: columns= [m,n,L,eigenvalue_1,eigenvalue_2,....,p_value_1,p_value_2,....]
+    """
+    assert param=="m" or param=="Fst"
+    data_folders = np.array(os.listdir(input_path))
+    data_folders = np.array([file for file in data_folders if "eigenvalues.pkl" in os.listdir(input_path + "/" + file)]) ## only include folders with eigenvalue output
+    params_list = np.array([file.split("=")[1] for file in data_folders]).astype(float) #list of m_values or Fst_values
+    order = np.argsort(params_list)
+    params_list = params_list[order]
+    data_folders = data_folders[order]
+    with open(os.path.join(input_path,data_folders[0])+"/eigenvalues.pkl","rb") as f:
+        x = pickle.load(f)
+    column_names =[param]+list(x.columns)
+    full_df = pd.DataFrame(columns = column_names)
+    for i,folder in enumerate(data_folders):
+        with open(os.path.join(input_path,folder) + "/eigenvalues.pkl","rb") as f:
+            df = pickle.load(f)
+        df[param] = [params_list[i]]*len(df.index)
+        df = df[[param]+list(df.columns[:-1])]
+        full_df = pd.concat([full_df,df])
+    return full_df
+
+def is_seperated_empirical(l,n,L):
+    """A test of whether the empirical eigenvalue is seperated from the bulk
+
+    Args:
+        l (float): eigenvalue
+        n (int): number of samples (rows)
+        L (int): number of independent SNPs (columns)
+
+    Returns:
+        bool: Whether the eigenvalue is seperated from the bulk of the Tracy-Widom distribution
+    """
+    edge_value = (1+np.sqrt(n/L))**2
+    return l > edge_value if n<L else np.nan
+    
+is_seperated_empirical_vectorized = np.vectorize(is_seperated_empirical)
+
+def is_seperated_theoretical(l,n,L):
+    """A test of whether the theoretical eigenvalue exceeds the critical value
+
+    Args:
+        l (float): eigenvalue
+        n (int): number of samples (rows)
+        L (int): number of independent SNPs (columns)
+
+    Returns:
+        bool: Whether the eigenvalue exceeds the critical value
+    """
+    if n>L:
+        return np.nan
+    critical_value = 1+np.sqrt(n/L)
+    if l > critical_value:
+        return True
+    else:
+        return False
+##
+def preprocess_T(demography):
+    """Preprocesses the values of computationally calculated mean total branch lengths for different parameter values (to be used later for a regression estimator for T)
+
+    Args:
+        demography (str): SS_1d or SS_2d or pop_split
+        N (int, optional): population size per deme. Defaults to 1000.
+
+    Returns:
+        np.array(n,4): columns represent values for K,m,n and average branch length respectively
+    """
+    if "1d" in demography:
+        d=1
+    elif "2d" in demography:
+        d=2
+    elif "split" in demography:
+        d=0
+    data_dir = "../../data/" + demography + "/"
+    if "d" in demography:
+        data = np.zeros((1,4))
+        folders = os.listdir(data_dir)
+        for folder in tqdm(folders):
+            K = int(folder[2:])
+            data_folders = os.listdir(os.path.join(data_dir,folder))
+            for data_folder in data_folders:
+                m = float(data_folder[2:])
+                if "branch_lengths.pkl" in os.listdir(data_dir+f"K={K}/m={m}"):
+                    T_list = pd.read_pickle(data_dir+f"K={K}/m={m}/branch_lengths.pkl")
+                    data_len = len(T_list)
+                    data_temp = np.hstack((np.array([K**d]*data_len).reshape(-1,1),np.array([m]*data_len).reshape(-1,1),np.arange(1,data_len+1).reshape(-1,1),T_list.reshape(-1,1)))
+                    data = np.vstack((data,data_temp))
+    elif "split" in demography:
+        data = np.zeros((1,3))
+        data_folders = os.listdir(os.path.join(data_dir))
+        for data_folder in data_folders:
+                Fst = float(data_folder[3:])
+                if "branch_lengths.pkl" in os.listdir(data_dir+f"Fst={Fst}"):
+                    T_list = pd.read_pickle(data_dir+f"m={Fst}/branch_lengths.pkl")
+                    data_len = len(T_list)
+                    data_temp = np.hstack((np.array([Fst]*data_len).reshape(-1,1),np.arange(1,data_len+1).reshape(-1,1),T_list.reshape(-1,1)))
+                    data = np.vstack((data,data_temp))
+    return data[1:,:-1],data[1:,-1]
+
+def train_regressor_T(demography):
+    """_summary_
+
+    Args:
+        demography (str): SS_1d or SS_2d or pop_split
+        N (int, optional): population size per deme. Defaults to 1000.
+
+    Returns:
+        sklearn.ensemble.RandomForestRegressor: _description_
+    """
+    X, y = preprocess_T(demography)
+    X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+    regr = RandomForestRegressor(random_state=0)
+    regr.fit(X_train, y_train)
+    y_pred = regr.predict(X_test)
+    print(f"MSE = {mean_squared_error(y_test, y_pred)/np.mean(y_pred)}")
+    return regr
+
+def unnorm_spectrum_from_coal_times(input_path,sample_sizes):
+    """Calculates the theoretical eigenvalues and eigenvectors by applying McVean 2009 equation on pairwise coalescent times that are computationally computed
+    Args:
+        input_path (str): the path to the directory including pairwise coalescent times pickled array
+        sample_sizes (int,list): the number of samples drawn from each subpopulation (if int, then the same number drawn from all subpopulations)
+
+    Returns:
+        np.ndarray(1,n),np.ndarray(n,n): unnormalized eigenvalues and eigenvectors
+    """
+
+    coal_times = pd.read_pickle(os.path.join(input_path,"pairwise_coal_times.pkl"))
+    K = coal_times.shape[0]
+    if type(sample_sizes)== int: ## The case where the same number of samples is drawn from each subpopulation to form the covariance matrix
+        expanded_caol_times = np.kron(coal_times,np.ones((sample_sizes,sample_sizes)))  ## expanding the matrix of coal times for more than one sample per subpopulation
+        expanded_caol_times = expanded_caol_times  - np.diag(np.diag(expanded_caol_times)) ## setting diag to zero
+        t_ave = np.mean(expanded_caol_times[expanded_caol_times!=0]) ## average pairwise caol times between any two samples ## forming a matrix of all elements equal to t_ave
+        theor_cov = t_ave - expanded_caol_times
+
+    else:
+        assert len(sample_sizes) == K
+        K = len(sample_sizes)
+        tot_sample_size = sum(sample_sizes)
+        t_ave_subpop = [] # ith element is the average coal time between any individual from subpop i and any other individual
+        for i in range(K):
+            weighted_ave_vector =[]
+            for j,n in enumerate(sample_sizes):
+                if i == j: ## This part is to set self coal time to zero, in order not to inflate the average
+                    temp_vec = [coal_times[i,j]]*n
+                    temp_vec[0] = 0
+                    weighted_ave_vector = weighted_ave_vector+temp_vec
+                else:
+                    weighted_ave_vector = weighted_ave_vector+[coal_times[i,j]]*n
+            t_ave_subpop.append(np.mean(weighted_ave_vector))
+        t_ave = np.mean(t_ave_subpop)
+
+        theor_cov = np.zeros((tot_sample_size,tot_sample_size))
+        subpop_start_indices = [0] + list(np.cumsum(sample_sizes))
+        for i in range(K):
+            for j in range(i,K):
+                M = t_ave_subpop[i] + t_ave_subpop[j] - t_ave - coal_times[i,j]
+                temp_matrix = np.ones((sample_sizes[i],sample_sizes[j]))*M
+                if i == j: ## This part is to set self coal time to zero
+                    temp_matrix = temp_matrix + np.diag([coal_times[i,i]]*sample_sizes[i])
+                theor_cov[subpop_start_indices[i]:subpop_start_indices[i+1],subpop_start_indices[j]:subpop_start_indices[j+1]] = temp_matrix
+                theor_cov[subpop_start_indices[j]:subpop_start_indices[j+1],subpop_start_indices[i]:subpop_start_indices[i+1]] = temp_matrix.T
+
+    
+    vals,vecs = np.linalg.eigh(theor_cov)
+    order = np.argsort(vals)[::-1]
+    vals = np.real(vals[order])
+    vecs = np.real(vecs[:,order])
+
+    return vals,vecs
+
+def theor_eigvals(demography,regr,param_arr,N=1000):
+    """Calculates the theoretical eigenvalue for a given demography
+
+    Args:
+        demography (str): SS_1d or SS_2d or pop_split
+        regr (sklearn.ensemble.RandomForestRegressor): a trained regressor for estimnating total branch length
+        param_arr (_type_): either [K,m,n] for stepping stones models or [Fst,n] for pop_split
+        N (int, optional): total population size. Defaults to 1000.
+
+    Returns:
+        float: theoretical eigenvalues
+    """
+    if "split" in demography:
+        assert len(param_arr) == 2
+        Fst,n = param_arr
+        T = 1 / regr.predict(np.array([Fst,n]).reshape(1,-1))
+        val = (1/T)*(1+n*Fst)
+        return np.array([val])
+    
+    elif "1d" in demography:
+        assert len(param_arr) == 3
+        K,m,n = param_arr
+        M = m * N
+        T_list = [(x * (K - x)) / (2 * M * K) for x in np.arange(1, ((K - 1) / 2) + 1)]
+        T_list2 = np.array(T_list+T_list[::-1]) 
+        T_list_full = [1]+ list(1+T_list2)
+        T_tilde = np.unique(np.real(fft(T_list_full)[1:]))
+        return ((1 / regr.predict(np.array([K,m,n]).reshape(1,-1))) * (1 - n * T_tilde)).reshape(1,-1)
+
+    elif "2d" in demography:
+        K,m,n = param_arr
+        T = regr.predict(np.array([K,m,n]).reshape(1,-1))
+        vals,vecs = unnorm_spectrum_from_coal_times(f"../../data/{demography}/K={K}/m={m}",n)
+        return (1/T)*vals[:K-1]
+
+def find_theoretical_cutoff_single(demography,regr,cutoff_param,cutoff_param_list,params):
+    num_trials = len(cutoff_param_list)
+    if "d" in demography:
+        K = params["K"]
+    elif "split" in demography:
+        K=2
+    elif cutoff_param == "m":
+        n=params["n"]
+        L=params["L"]
+        param_arr = np.hstack((np.ones((num_trials,1))*K,cutoff_param_list.reshape(-1,1),(np.ones((num_trials,1))*n)))
+    elif cutoff_param == "Fst":
+        n=params["n"]
+        L=params["L"]
+        param_arr = np.hstack((cutoff_param_list.reshape(-1,1),(np.ones((num_trials,1))*n)))
+    elif cutoff_param == "n":
+        L=params["L"]
+        n=cutoff_param_list
+        if "d" in demography:
+            m=params["m"]
+            param_arr = np.hstack((np.ones((num_trials,1))*K,np.ones((num_trials,1))*m,cutoff_param_list.reshape(-1,1)))
+        elif "split" in demography:
+            Fst=params["Fst"]
+            param_arr = np.hstack((np.ones((num_trials,1))*Fst,cutoff_param_list.reshape(-1,1)))
+    elif cutoff_param == "L":
+        n=params["n"]
+        L=cutoff_param_list
+        if "d" in demography:
+            m=params["m"]
+            param_arr = np.hstack((np.ones((num_trials,1))*K,np.ones((num_trials,1))*m,(np.ones((num_trials,1))*n)))
+        elif "split" in demography:
+            Fst = params["Fst"]
+            param_arr = np.hstack((np.ones((num_trials,1))*Fst,(np.ones((num_trials,1))*n)))
+
+    l = 1+np.sqrt(n/L)
+    if isinstance(l,np.ndarray):
+        l = l.reshape(-1,1)
+    solutions = np.apply_along_axis(lambda x: theor_eig(demography = demography,regr=regr,param_arr=x,N=1000),axis=1,arr=param_arr).reshape(-1,int((K-1)/2))-l
+    result_inx = []
+    for i in range(solutions.shape[1]):
+        try:
+            result_inx.append(np.where(solutions[:,i]<0)[0][-1])  
+        except:
+            result_inx.append(np.nan)
+    return solutions,result_inx
+
+def find_theoretical_cutoff(demography,regr,cutoff_param,cutoff_param_list_init,params):
+    solutions0, inx0 = find_theoretical_cutoff_single(demography,regr,cutoff_param,cutoff_param_list_init,params) ## the index of an initial Solution
+    result = []
+    for i in range(len(inx0)): ## Iterating over the cutoffs for all different eigenvalues
+        cutoff_param_list = cutoff_param_list_init
+        solutions = solutions0
+        inx = inx0[i]
+        while np.abs(solutions[inx,i]) > 1e-2:
+            if np.isnan(inx): ## Case where solution lies below minimum value for the cutoff_list
+                if cutoff_param == "m":
+                    cutoff_param_list = np.geomspace(cutoff_param_list[0],cutoff_param_list[0]*10,len(cutoff_param_list))[::-1]
+                else:
+                    cutoff_param_list = np.geomspace(cutoff_param_list[0]/10,cutoff_param_list[0],len(cutoff_param_list))
+            elif inx == len(cutoff_param_list)-1: ## Case where solution lies above maximum value for the cutoff_list
+                if cutoff_param == "m":
+                    cutoff_param_list = np.geomspace(cutoff_param_list[-1]/10,cutoff_param_list[-1],len(cutoff_param_list))[::-1]
+                else:
+                    cutoff_param_list = np.geomspace(cutoff_param_list[-1],cutoff_param_list[-1]*10,len(cutoff_param_list))
+            else:
+                if cutoff_param == "m":
+                    cutoff_param_list = np.geomspace(cutoff_param_list[inx+1],cutoff_param_list[inx],len(cutoff_param_list))[::-1]
+                else:
+                    cutoff_param_list = np.geomspace(cutoff_param_list[inx],cutoff_param_list[inx+1],len(cutoff_param_list))
+
+
+            solutions, inx = find_theoretical_cutoff_single(demography,regr,cutoff_param,cutoff_param_list,params) ## find the index of a new solution
+            inx = inx[i]
+        result.append(cutoff_param_list[inx])
+    return result
+
+# %%

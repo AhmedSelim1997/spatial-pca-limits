@@ -32,11 +32,15 @@ def standerdize(matrix,ploidy = 1):
 
 
 #%%
-def rotate_eigenvectors(eigenvectors, K, index=0):
-    n=int(np.shape(eigenvectors)[0]/K)
+def rotate_eigenvectors(eigenvectors, samples, index=0):
+    K=len(samples)
+    samples_sums = np.cumsum(np.concatenate((np.array([0]),np.array(samples))))
 
-    centroids_vector_1 = [np.mean(eigenvectors[k*n:(k+1)*n,0]) for k in range(K)]
-    centroids_vector_2 = [np.mean(eigenvectors[k*n:(k+1)*n,1]) for k in range(K)]
+    centroids_vector_1 = [np.mean(eigenvectors[samples_sums[k]:samples_sums[k+1],0]) for k in range(K)]
+    centroids_vector_2 = [np.mean(eigenvectors[samples_sums[k]:samples_sums[k+1],1]) for k in range(K)]
+
+    # centroids_vector_1 = [np.mean(eigenvectors[k*n:(k+1)*n,0]) for k in range(K)]
+    # centroids_vector_2 = [np.mean(eigenvectors[k*n:(k+1)*n,1]) for k in range(K)]
     centroids_vector = np.vstack((centroids_vector_1,centroids_vector_2)).T ## K*2 vector of centroids
 
     x1 = np.abs(centroids_vector[index,0])
@@ -63,9 +67,20 @@ def rotate_eigenvectors(eigenvectors, K, index=0):
     if Rotated_centroids[1,0]<0:
         Rotated_centroids[:,0] = -Rotated_centroids[:,0]
         Rotated_eigenvectors[:,0] = -Rotated_eigenvectors[:,0]
+    Rotated_eigenvectors = Rotated_eigenvectors/np.linalg.norm(Rotated_eigenvectors,axis=0)
 
-    ## output the rotation matrix as well to use it to rotate the whole PC plot
-    return Rotated_eigenvectors,Rotated_centroids
+    norm = np.linalg.norm(Rotated_centroids,axis=1)[0]
+    Rotated_scaled_eigenvectors = Rotated_eigenvectors/norm
+    return Rotated_scaled_eigenvectors
+
+def theor_vecs_1d(K):
+    x = np.cos(2*np.pi*np.arange(K)/K).reshape(-1,1)
+    x = x/np.linalg.norm(x)
+    y = np.sin(2*np.pi*np.arange(K)/K).reshape(-1,1)
+    y = y/np.linalg.norm(y)
+    vecs = rotate_eigenvectors(np.hstack((x,y)),samples = [1]*K)
+    return vecs
+
 
 #%%
 if __name__ == "__main__":

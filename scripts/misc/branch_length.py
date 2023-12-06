@@ -3,6 +3,7 @@ import numpy as np
 import msprime
 import pandas as pd
 from demographies import Stepping_Stones_1d
+from demographies import Stepping_Stones_2d
 from tqdm import tqdm
 
 #%%

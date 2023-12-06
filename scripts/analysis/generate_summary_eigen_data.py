@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import os
-from analysis_functions import create_full_eigenvalue_df
+from scripts.analysis.analysis_functions_0 import create_full_eigenvalue_df
 import matplotlib.pyplot as plt
 #%%
 if __name__ == "__main__":
@@ -21,3 +21,5 @@ if __name__ == "__main__":
         df = create_full_eigenvalue_df(input_path,param)
         with open(os.path.join(output_path,f"{file_name}.pkl"),"wb") as f:
             pickle.dump(df,f)
+
+# %%
